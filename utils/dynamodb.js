@@ -1,9 +1,11 @@
-// utils/dynamodb.js
 require('dotenv').config();
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, PutCommand, GetCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 
-const client = new DynamoDBClient({ region: process.env.AWS_REGION });
+// Default to region from environment or fallback to 'us-east-2'
+const REGION = process.env.AWS_REGION || 'us-east-2';
+
+const client = new DynamoDBClient({ region: REGION });
 const docClient = DynamoDBDocumentClient.from(client);
 
 module.exports = {

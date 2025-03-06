@@ -6,10 +6,16 @@ const MAX_ALLOWED_USERS = 10; // Set an appropriate maximum number of allowed us
 
 async function createShoppingList(listName, createdBy, allowedUsers = []) {
   // Ensure unique users and include the creator
-  const uniqueUsers = Array.from(new Set([createdBy, ...allowedUsers]));
+  const safeAllowedUsers = Array.isArray(allowedUsers) ? allowedUsers : [];
+  const uniqueUsers = Array.from(new Set([createdBy, ...safeAllowedUsers]));
 
   if (uniqueUsers.length > MAX_ALLOWED_USERS) {
     throw new Error(`Cannot have more than ${MAX_ALLOWED_USERS} users in a list`);
+  }
+
+  // Validate list name
+  if (!listName || listName.trim() === '') {
+    throw new Error("List name cannot be empty");
   }
 
   const item = {
@@ -36,14 +42,23 @@ async function getShoppingList(listId, requestingUserId) {
 
   const result = await docClient.send(new GetCommand(params));
 
-  if (!result.Item || !result.Item.AllowedUsers.includes(requestingUserId)) {
+  if (!result.Item) {
+    throw new Error("Shopping list not found");
+  }
+
+  if (!result.Item.AllowedUsers.includes(requestingUserId)) {
     throw new Error("Unauthorized access to the shopping list");
   }
 
   return result.Item;
 }
 
-async function addItemToList(listId, itemName, quantity, addedBy) {
+async function addItemToList(listId, itemName, quantity = 1, addedBy) {
+  // Validate item name
+  if (!itemName || itemName.trim() === '') {
+    throw new Error("Item name cannot be empty");
+  }
+
   const item = {
     ListId: listId,
     ItemId: uuidv4(),
@@ -122,7 +137,7 @@ async function removeUserFromList(listId, userId) {
   return result.Attributes;
 }
 
-async function markItemAsPurchased(listId, itemId, purchasedBy, cost, itemDetails) {
+async function markItemAsPurchased(listId, itemId, purchasedBy, cost = null, itemDetails = null) {
   const params = {
     TableName: 'ShoppingListItems',
     Key: { ListId: listId, ItemId: itemId },
@@ -141,6 +156,29 @@ async function markItemAsPurchased(listId, itemId, purchasedBy, cost, itemDetail
   return result.Attributes;
 }
 
+// TODO: Cascade delete items and receipts
+async function deleteShoppingList(listId, requestingUserId) {
+  // First, retrieve the list to check the creator
+  const params = {
+    TableName: 'ShoppingLists',
+    Key: { ListId: listId }
+  };
+
+  const result = await docClient.send(new GetCommand(params));
+
+  if (!result.Item) {
+    throw new Error("Shopping list not found");
+  }
+
+  if (result.Item.CreatedBy !== requestingUserId) {
+    throw new Error("Unauthorized: Only the creator can delete this list");
+  }
+
+  // If the requesting user is the creator, proceed to delete the list
+  await docClient.send(new DeleteCommand(params));
+  return { message: 'List deleted successfully' };
+}
+
 module.exports = {
   createShoppingList,
   getShoppingList,
@@ -148,5 +186,6 @@ module.exports = {
   markItemAsPurchased,
   removeItemFromList,
   addUserToList,
-  removeUserFromList
+  removeUserFromList,
+  deleteShoppingList
 };
