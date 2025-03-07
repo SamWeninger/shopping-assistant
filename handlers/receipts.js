@@ -6,6 +6,8 @@ const { v4: uuidv4 } = require('uuid');
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 const BUCKET_NAME = process.env.AWS_S3_BUCKET;
 
+// TODO: Auth + delete receipt + parse receipt
+
 async function generateReceiptUploadURL(listId, uploadedBy) {
   const receiptId = uuidv4();
   const key = `receipts/${receiptId}.jpg`;
