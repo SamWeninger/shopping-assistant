@@ -1,9 +1,10 @@
 // handlers/lists.js
-const { docClient, PutCommand, GetCommand, UpdateCommand, DeleteCommand } = require('../utils/dynamodb');
+const { docClient, PutCommand, GetCommand, UpdateCommand, DeleteCommand, QueryCommand } = require('../utils/dynamodb');
 const { v4: uuidv4 } = require('uuid');
 
 const MAX_ALLOWED_USERS = 10; // Set an appropriate maximum number of allowed users
 
+// TODO: Auth
 async function createShoppingList(listName, createdBy, allowedUsers = []) {
   // Ensure unique users and include the creator
   const safeAllowedUsers = Array.isArray(allowedUsers) ? allowedUsers : [];
@@ -87,8 +88,8 @@ async function removeItemFromList(listId, itemId) {
   return { message: 'Item removed successfully' };
 }
 
-async function addUserToList(listId, userId) {
-  const list = await getShoppingList(listId, userId);
+async function addUserToList(listId, requestingUserId, userId) {
+  const list = await getShoppingList(listId, requestingUserId);
 
   if (list.AllowedUsers.includes(userId)) {
     return { message: 'User already exists in the list' };
@@ -114,8 +115,13 @@ async function addUserToList(listId, userId) {
   return result.Attributes;
 }
 
-async function removeUserFromList(listId, userId) {
-  const list = await getShoppingList(listId, userId);
+async function removeUserFromList(listId, requestingUserId, userId) {
+  const list = await getShoppingList(listId, requestingUserId);
+
+  // Check if the requesting user is authorized to remove users
+  if (!list.AllowedUsers.includes(requestingUserId)) {
+    throw new Error("Unauthorized: You do not have permission to modify this list");
+  }
 
   if (!list.AllowedUsers.includes(userId)) {
     return { message: 'User does not exist in the list' };
@@ -137,6 +143,7 @@ async function removeUserFromList(listId, userId) {
   return result.Attributes;
 }
 
+// TODO: handle quantity of items
 async function markItemAsPurchased(listId, itemId, purchasedBy, cost = null, itemDetails = null) {
   const params = {
     TableName: 'ShoppingListItems',
@@ -156,27 +163,46 @@ async function markItemAsPurchased(listId, itemId, purchasedBy, cost = null, ite
   return result.Attributes;
 }
 
-// TODO: Cascade delete items and receipts
 async function deleteShoppingList(listId, requestingUserId) {
   // First, retrieve the list to check the creator
-  const params = {
+  const listParams = {
     TableName: 'ShoppingLists',
     Key: { ListId: listId }
   };
 
-  const result = await docClient.send(new GetCommand(params));
+  const listResult = await docClient.send(new GetCommand(listParams));
 
-  if (!result.Item) {
+  if (!listResult.Item) {
     throw new Error("Shopping list not found");
   }
 
-  if (result.Item.CreatedBy !== requestingUserId) {
+  if (listResult.Item.CreatedBy !== requestingUserId) {
     throw new Error("Unauthorized: Only the creator can delete this list");
   }
 
-  // If the requesting user is the creator, proceed to delete the list
-  await docClient.send(new DeleteCommand(params));
-  return { message: 'List deleted successfully' };
+  // Retrieve all items associated with the list
+  const itemsParams = {
+    TableName: 'ShoppingListItems',
+    KeyConditionExpression: 'ListId = :listId',
+    ExpressionAttributeValues: {
+      ':listId': listId
+    }
+  };
+
+  const itemsResult = await docClient.send(new QueryCommand(itemsParams));
+
+  // Delete each item
+  for (const item of itemsResult.Items) {
+    const deleteItemParams = {
+      TableName: 'ShoppingListItems',
+      Key: { ListId: item.ListId, ItemId: item.ItemId }
+    };
+    await docClient.send(new DeleteCommand(deleteItemParams));
+  }
+
+  // Delete the list
+  await docClient.send(new DeleteCommand(listParams));
+  return { message: 'List and all associated items deleted successfully' };
 }
 
 module.exports = {

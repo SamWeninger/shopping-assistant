@@ -41,8 +41,8 @@ exports.removeItemFromListHandler = async (event) => {
 // Handler for adding a user to a list
 exports.addUserToListHandler = async (event) => {
   const listId = event.pathParameters.listId;
-  const { userId } = JSON.parse(event.body);
-  const response = await addUserToList(listId, userId);
+  const { requestingUserId, userId } = JSON.parse(event.body);
+  const response = await addUserToList(listId, requestingUserId, userId);
   return { statusCode: 200, body: JSON.stringify(response) };
 };
 
@@ -50,8 +50,13 @@ exports.addUserToListHandler = async (event) => {
 exports.removeUserFromListHandler = async (event) => {
   const listId = event.pathParameters.listId;
   const userId = event.pathParameters.userId;
-  const response = await removeUserFromList(listId, userId);
-  return { statusCode: 200, body: JSON.stringify(response) };
+  const { requestingUserId } = JSON.parse(event.body);
+  try {
+    const response = await removeUserFromList(listId, requestingUserId, userId);
+    return { statusCode: 200, body: JSON.stringify(response) };
+  } catch (error) {
+    return { statusCode: 400, body: JSON.stringify({ error: error.message }) };
+  }
 };
 
 // Handler for marking an item as purchased
