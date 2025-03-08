@@ -1,18 +1,18 @@
 # package directories
-node_modules
-jspm_packages
+backend/node_modules
+backend/jspm_packages
 
 # Serverless directories
-.serverless
+backend/.serverless
 
 # Environment variables
-.env
+backend/.env
 
 # Logs
-logs
-*.log
-npm-debug.log*
+backend/logs
+backend/*.log
+backend/npm-debug.log*
 
 # OS generated files
-.DS_Store
-Thumbs.db
+backend/.DS_Store
+backend/Thumbs.db
