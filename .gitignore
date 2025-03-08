@@ -1,3 +1,5 @@
+## Backend ##
+
 # package directories
 backend/node_modules
 backend/jspm_packages
@@ -16,3 +18,29 @@ backend/npm-debug.log*
 # OS generated files
 backend/.DS_Store
 backend/Thumbs.db
+
+## Frontend ##
+
+# Logs
+frontend/logs
+frontend/*.log
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*
+
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/*.local
+
+# Editor directories and files
+frontend/.vscode/*
+frontend/.idea
+frontend/.DS_Store
+frontend/*.suo
+frontend/*.ntvs*
+frontend/*.njsproj
+frontend/*.sln
+frontend/*.sw?
